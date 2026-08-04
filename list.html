@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>りったいや - ウェブサイト</title>
+  </head>
+  <body style="margin:0;background:#e5e5e5;font-family:sans-serif;">
+    <div style="width:960px;background:#fff;overflow:hidden;min-height:100vh;">
+
+  <aside style="width:197.5px;float:left;border-right:2.5px solid #999;background-color:#8d8d8d80;padding-bottom:9999px;margin-bottom:-9999px;"><!--サイドバー　ここから-->
+    <img src="logo.jpg" width="200" height="120">
+    <img height="25"><!--空白役-->
+    <section><!--リスト画面用始まり-->
+    <div style="position:relative; width:199.5px;"><!--リストサーチ-->
+      <img src="Images1/Search_1.png" width="199.5" style="display:block; width:100%;">
+      <input id="searchInput" type="text" placeholder=" ここに入力"
+        style="position:absolute; top:40px; left:5px; width:140px; height:50px; border:none; background:transparent; z-index:2;">
+      <input id="searchButton" type="button" value=""
+        style="position:absolute; top:0px; left:145px; width:50px; height:90px; border:none; background:transparent; cursor:pointer; z-index:2;">
+    </div><!--リストサーチ　終わり-->
+    <img height="25">
+    </section><!--リスト画面用終わり-->
+    <section><!--共通サイドバー要素-->
+
+    </section><!--共通サイドバー要素終わり-->
+
+
+
+
+
+  </aside><!--サイドバ　終わりー-->
+
+      <main style="width:760px;float:left;">
+        <header style="line-height:0">
+          <div style="width:760px; height:20px;text-align:right;">
+            <img height="20">
+
+            <a href="https://github.com/Sakakuri/rittaiya">GitHubリポジトリ（外部リンク）</a>
+            <a>|</a>
+            <a>このサイトについて</a>
+
+          </div>
+          <img src="Images1/HeaderImage_1.png" width="760" height="50">
+          <div style="width:200px;float:left;">
+            <a href="index.html"><img src="Images1/GoToMainPage_Button_1.jpg" width="200" height="50" onmouseover="this.src='Images1/GoToMainPage_Button_2.jpg'" onmouseout="this.src='Images1/GoToMainPage_Button_1.jpg'"></a>
+
+          </div>
+          <div style="width:200px;float:left;">
+            <a href="index.html"><img src="Images1/License_Button_1.jpg" width="200" height="50" onmouseover="this.src='Images1/License_Button_2.jpg'" onmouseout="this.src='Images1/License_Button_1.jpg'"></a>
+          </div>
+          <div style="width:200px;float:left;">
+            <div style="width:200px;float:left;">
+            <a href="index.html"><img src="Images1/AboutRoblox_Button_1.jpg" width="200" height="50" onmouseover="this.src='Images1/AboutRoblox_Button_2.jpg'" onmouseout="this.src='Images1/AboutRoblox_Button_1.jpg'"></a>
+          </div>
+          </div>
+          <div style="width:150px;float:left;">
+            <a href="index.html"><img src="Images1/DownloadList_Button_1.jpg" width="160" height="50" onmouseover="this.src='Images1/DownloadList_Button_2.jpg'" onmouseout="this.src='Images1/DownloadList_Button_1.jpg'"></a>
+          </div>
+        </header>
+        <div style="clear:both;"></div>
+        <section> <!--真のメイン部分-->
+
+          <table id="fbxTable" border="0" cellpadding="6" cellspacing="0">
+            <tbody id="fbxTableBody"></tbody>
+          </table>
+<p id="statusMessage" style="text-align:center;color:#888;padding:40px 0;"></p>
+
+<script>
+const OWNER = "Sakakuri";
+const REPO = "rittaiya";
+const COLS = 4;  // 列数
+const ROWS = 8;  // 最初に用意しておく行数
+
+let allCards = []; // { title, description, element(td) } を保持して検索に使う
+let cellIndex = 0;
+
+function setStatus(msg){
+    document.getElementById("statusMessage").textContent = msg;
+}
+
+// 最初に4列×8行(=32マス)の空テーブルを組んでおく
+function buildEmptyTable(){
+    const body = document.getElementById("fbxTableBody");
+    for(let r=0; r<ROWS; r++){
+        const tr = document.createElement("tr");
+        for(let c=0; c<COLS; c++){
+            const td = document.createElement("td");
+            td.id = "cell-" + (r*COLS + c);
+            tr.appendChild(td);
+        }
+        body.appendChild(tr);
+    }
+}
+
+// 32マスを使い切ったら行を追加していく（作品数がそれ以上ある場合の保険）
+function nextCell(){
+    let td = document.getElementById("cell-" + cellIndex);
+    if(!td){
+        const body = document.getElementById("fbxTableBody");
+        // 新しい行が必要なら1行分（4マス）まとめて追加
+        if(cellIndex % COLS === 0){
+            const tr = document.createElement("tr");
+            body.appendChild(tr);
+        }
+        const rows = body.querySelectorAll("tr");
+        const lastRow = rows[rows.length-1];
+        td = document.createElement("td");
+        td.id = "cell-" + cellIndex;
+        lastRow.appendChild(td);
+    }
+    cellIndex++;
+    return td;
+}
+
+async function load(){
+    buildEmptyTable();
+    setStatus("読み込み中...");
+
+    let releases;
+    try{
+        const res = await fetch(
+            `https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=100`
+        );
+        if(!res.ok){
+            throw new Error(`GitHub API error: ${res.status}`);
+        }
+        releases = await res.json();
+    }catch(e){
+        setStatus("読み込みに失敗しました。しばらくしてから再度お試しください。");
+        console.error(e);
+        return;
+    }
+
+    if(!Array.isArray(releases) || releases.length === 0){
+        setStatus("まだ作品が登録されていません。");
+        return;
+    }
+
+    for(const release of releases){
+
+        const fbxFiles = release.assets.filter(a =>
+            a.name.toLowerCase().endsWith(".fbx")
+        );
+
+        for(const fbx of fbxFiles){
+
+            const base = fbx.name.replace(/\.fbx$/i,"");
+
+            const png = release.assets.find(a =>
+                a.name.toLowerCase() === base.toLowerCase()+"_1.png"
+            );
+
+            // "{base}_{連番}_{Base64チャンク}" という名前のファイル群を探して連番順に結合する
+            const infoChunks = release.assets
+                .filter(a => a.name.toLowerCase().startsWith(base.toLowerCase() + "_") && !/\.(fbx|png|jpe?g)$/i.test(a.name))
+                .map(a => {
+                    const rest = a.name.slice(base.length + 1); // "{連番}_{チャンク}"
+                    const sep = rest.indexOf("_");
+                    if(sep === -1) return null;
+                    const idx = parseInt(rest.slice(0, sep), 10);
+                    const chunk = rest.slice(sep + 1);
+                    if(isNaN(idx)) return null;
+                    return { idx, chunk };
+                })
+                .filter(x => x !== null)
+                .sort((a, b) => a.idx - b.idx);
+
+            let title = base;
+            let description = "";
+            let keywords = [];
+
+            // ファイル名向けに変換したBase64 → 元のUTF-8文字列に戻す
+            function fromSafeBase64(s){
+                let b64 = s.replace(/\./g, "+").replace(/-/g, "/");
+                while(b64.length % 4) b64 += "=";
+                const binary = atob(b64);
+                const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+                return new TextDecoder().decode(bytes);
+            }
+
+            if(infoChunks.length > 0){
+                try{
+                    const encoded = infoChunks.map(c => c.chunk).join("");
+                    const combined = fromSafeBase64(encoded);
+                    // 1行目=タイトル, 2行目=キーワード(カンマ区切り), 3行目以降=説明文
+                    const lines = combined.replace(/\r/g,"").split("\n");
+
+                    if(lines.length>0 && lines[0].trim()!==""){
+                        title = lines[0];
+                    }
+                    if(lines.length>1 && lines[1].trim()!==""){
+                        keywords = lines[1].split(",")
+                            .map(k => k.trim())
+                            .filter(k => k !== "");
+                    }
+                    description = lines.slice(2).join("\n");
+                }catch(e){
+                    console.warn("情報ファイルのデコードに失敗:", base, e);
+                }
+            }
+
+            const td = nextCell();
+            td.className = "cardCell";
+
+            const card = document.createElement("a");
+            card.className = "card";
+            card.href = fbx.browser_download_url;
+
+            const img = document.createElement("img");
+            img.src = png ? png.browser_download_url : "placeholder.png";
+            img.alt = title;
+
+            const body = document.createElement("div");
+            body.className = "card-body";
+
+            const titleEl = document.createElement("div");
+            titleEl.className = "card-title";
+            titleEl.textContent = title;
+
+            const descEl = document.createElement("div");
+            descEl.className = "card-description";
+            descEl.textContent = description;
+
+            body.appendChild(titleEl);
+            body.appendChild(descEl);
+            card.appendChild(img);
+            card.appendChild(body);
+
+            td.appendChild(card);
+
+            allCards.push({ title, description, keywords, element: td });
+        }
+    }
+
+    if(allCards.length === 0){
+        setStatus("公開されているFBXファイルが見つかりませんでした。");
+    }else{
+        setStatus("");
+    }
+}
+
+function applySearch(){
+    const query = document.getElementById("searchInput").value.trim().toLowerCase();
+    let visibleCount = 0;
+
+    for(const c of allCards){
+        const match = !query
+            || c.title.toLowerCase().includes(query)
+            || c.description.toLowerCase().includes(query)
+            || c.keywords.some(k => k.toLowerCase().includes(query));
+        c.element.style.display = match ? "" : "none";
+        if(match) visibleCount++;
+    }
+
+    if(allCards.length > 0){
+        setStatus(visibleCount === 0 ? "該当する作品が見つかりませんでした。" : "");
+    }
+}
+
+document.getElementById("searchButton").addEventListener("click", applySearch);
+document.getElementById("searchInput").addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+        e.preventDefault();
+        applySearch();
+    }
+});
+
+load();
+</script>
+
+<style>
+#fbxTable{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+}
+
+#fbxTable td{
+    width:25%;
+    vertical-align:top;
+    border:1px solid transparent;
+}
+
+.card{
+    display:block;
+    text-decoration:none;
+    color:#000;
+}
+
+.card img{
+    width:100%;
+    aspect-ratio:1/1;
+    object-fit:cover;
+    background:#eee;
+    display:block;
+}
+
+.card-body{
+    padding:6px;
+}
+
+.card-title{
+    font-size:16px;
+    font-weight:bold;
+    margin-bottom:4px;
+}
+
+.card-description{
+    font-size:13px;
+    color:#333;
+    line-height:1.4;
+}
+</style>
+
+
+        </section>
+
+
+      </main>
+    </div>
+
+  </body>
+</html>
